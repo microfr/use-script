@@ -4,27 +4,51 @@
  * components.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, FunctionComponent } from "react";
 
+type State = {
+  /*
+    Indicates whether script is still being injected.
+    */
+  loading: boolean;
+  /*
+    Indicates whether an error occurred during script injection.
+    */
+  error: boolean;
+  /*
+    Returns a component after its script is injected via passed in namespace.
+    */
+  component: null | FunctionComponent;
+};
+
+/*
+    Script cache.
+*/
 let cachedScripts: string[] = [];
 
+/**
+ *
+ * @param {String} src Source URL of componenet.
+ * @param {String} namespace Global namespace component is attached to when script is injected.
+ */
 export function useScript(src: string, namespace: string) {
-  let script: any
+  let script: any;
   // Keeping track of script loaded and error state
-  const [state, setState] = useState({
-    loaded: false,
+  const [state, setState] = useState<State>({
+    loading: true,
     error: false,
     component: null
   });
 
   useEffect(
-    () => {
+    (): void | (() => void | undefined) => {
       // If cachedScripts array already includes src that means another instance ...
       // ... of this hook already loaded this script, so no need to load again.
       if (cachedScripts.includes(src)) {
         setState({
+          // @ts-ignore
           component: window[namespace].default,
-          loaded: true,
+          loading: false,
           error: false
         });
       } else {
@@ -38,11 +62,11 @@ export function useScript(src: string, namespace: string) {
         // Script event listener callbacks for load and error
         const onScriptLoad = () => {
           // @ts-ignore
-          if(window[namespace] && window[namespace].default) {
+          if (window[namespace] && window[namespace].default) {
             setState({
               // @ts-ignore
               component: window[namespace].default,
-              loaded: true,
+              loading: false,
               error: false
             });
           }
@@ -56,11 +80,10 @@ export function useScript(src: string, namespace: string) {
 
           setState({
             component: null,
-            loaded: true,
+            loading: false,
             error: true
           });
         };
-
         script.addEventListener("load", onScriptLoad);
         script.addEventListener("error", onScriptError);
 
@@ -77,5 +100,5 @@ export function useScript(src: string, namespace: string) {
     [src] // Only re-run effect if script src changes
   );
 
-  return { component: state.component, error: state.error };
+  return { component: state.component, error: state.error, loading: state.loading };
 }
